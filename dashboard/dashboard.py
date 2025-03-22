@@ -1,12 +1,8 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import numpy as np
-from tabulate import tabulate
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
 # Set page configuration
 st.set_page_config(
@@ -82,6 +78,21 @@ def load_data():
                                  'Wednesday', 'Thursday', 'Friday'] else 0
     )
 
+    # Add season names for better readability
+    season_names = {1: 'Winter', 2: 'Spring', 3: 'Summer', 4: 'Fall'}
+    day_df['season_name'] = day_df['season'].map(season_names)
+    hour_df['season_name'] = hour_df['season'].map(season_names)
+
+    # Add weather descriptions
+    weather_desc = {
+        1: "Clear/Few clouds",
+        2: "Mist/Cloudy",
+        3: "Light Snow/Rain",
+        4: "Heavy Rain/Snow/Fog"
+    }
+    day_df['weather_desc'] = day_df['weathersit'].map(weather_desc)
+    hour_df['weather_desc'] = hour_df['weathersit'].map(weather_desc)
+
     return day_df, hour_df
 
 
@@ -103,8 +114,18 @@ if pages == 'Introduction':
 
     st.markdown("""
     ### Business Questions
-    1. Apakah peningkatan penggunaan sepeda di tahun 2012 murni karena faktor musiman (cuaca) atau juga didorong oleh kebijakan/infrastruktur?
-    2. Bagaimana dampak cuaca ekstrem (misalnya, hujan lebat/suhu sangat rendah) terhadap perilaku pengguna casual vs. registered?
+    1. Bagaimana perbandingan tren penggunaan sepeda antara tahun 2011 dan 2012, serta faktor-faktor apa yang mungkin berkontribusi terhadap perubahan tersebut?
+    2. Sejauh mana perbedaan rata-rata penggunaan sepeda oleh pengguna casual dan registered pada berbagai kondisi cuaca (baik, berkabut, hujan ringan)?
+    """)
+
+    st.markdown("""
+    ### Interactive Features
+    Dashboard ini dilengkapi dengan fitur interaktif sederhana di setiap halaman:
+    - **Data Overview**: Filter data berdasarkan tahun
+    - **Analysis Q1**: Filter data berdasarkan musim (season)
+    - **Analysis Q2**: Filter data berdasarkan tipe pengguna (casual/registered)
+    
+    Silakan gunakan fitur-fitur ini untuk mengeksplorasi data lebih dalam!
     """)
 
     st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/00_2141_Bicycle-sharing_systems_-_Sweden.jpg/1024px-00_2141_Bicycle-sharing_systems_-_Sweden.jpg",
@@ -114,21 +135,34 @@ if pages == 'Introduction':
 elif pages == 'Data Overview':
     st.header('Data Overview')
 
+    # Simple year filter
+    selected_year = st.selectbox('Pilih Tahun:', [2011, 2012, 'Semua Tahun'])
+
+    if selected_year != 'Semua Tahun':
+        filtered_day_df = day_df[day_df['year_actual'] == selected_year]
+        filtered_hour_df = hour_df[hour_df['year_actual'] == selected_year]
+        st.success(f"Menampilkan data untuk tahun {selected_year}")
+    else:
+        filtered_day_df = day_df
+        filtered_hour_df = hour_df
+        st.success(f"Menampilkan data untuk semua tahun")
+
     tab1, tab2 = st.tabs(["Daily Data", "Hourly Data"])
 
     with tab1:
         st.subheader("Daily Data Sample")
-        st.dataframe(day_df.head())
+        st.dataframe(filtered_day_df.head())
 
         st.subheader("Daily Data Statistics")
-        st.dataframe(day_df.describe())
+        st.dataframe(filtered_day_df.describe())
 
         col1, col2 = st.columns(2)
 
         with col1:
             # Daily rentals distribution
             fig = plt.figure(figsize=(10, 6))
-            plt.hist(day_df['total_rentals'], bins=20, edgecolor='black')
+            plt.hist(filtered_day_df['total_rentals'],
+                     bins=20, edgecolor='black')
             plt.title('Distribution of Daily Total Rentals')
             plt.xlabel('Number of Rentals')
             plt.ylabel('Frequency')
@@ -138,7 +172,8 @@ elif pages == 'Data Overview':
         with col2:
             # Temperature vs rentals
             fig = plt.figure(figsize=(10, 6))
-            plt.scatter(day_df['temp_c'], day_df['total_rentals'], alpha=0.6)
+            plt.scatter(filtered_day_df['temp_c'],
+                        filtered_day_df['total_rentals'], alpha=0.6)
             plt.title('Daily Rentals vs. Temperature')
             plt.xlabel('Temperature (Celsius)')
             plt.ylabel('Total Rentals')
@@ -147,14 +182,14 @@ elif pages == 'Data Overview':
 
     with tab2:
         st.subheader("Hourly Data Sample")
-        st.dataframe(hour_df.head())
+        st.dataframe(filtered_hour_df.head())
 
         st.subheader("Hourly Data Statistics")
-        st.dataframe(hour_df.describe())
+        st.dataframe(filtered_hour_df.describe())
 
         # Hourly rentals distribution
         fig = plt.figure(figsize=(10, 6))
-        plt.hist(hour_df['total_rentals'], bins=50, edgecolor='black')
+        plt.hist(filtered_hour_df['total_rentals'], bins=50, edgecolor='black')
         plt.title('Distribution of Hourly Total Rentals')
         plt.xlabel('Number of Rentals')
         plt.ylabel('Frequency')
@@ -162,9 +197,9 @@ elif pages == 'Data Overview':
         st.pyplot(fig)
 
         # Hourly trends by weekday/weekend
-        hourly_trends_weekday = hour_df[hour_df['weekday'] == 1].groupby('hour')[
+        hourly_trends_weekday = filtered_hour_df[filtered_hour_df['weekday'] == 1].groupby('hour')[
             'total_rentals'].mean()
-        hourly_trends_weekend = hour_df[hour_df['weekday'] == 0].groupby('hour')[
+        hourly_trends_weekend = filtered_hour_df[filtered_hour_df['weekday'] == 0].groupby('hour')[
             'total_rentals'].mean()
 
         fig = plt.figure(figsize=(12, 6))
@@ -185,8 +220,23 @@ elif pages == 'Analysis Q1':
     st.subheader(
         'Apakah peningkatan penggunaan sepeda di tahun 2012 murni karena faktor musiman (cuaca) atau juga didorong oleh kebijakan/infrastruktur?')
 
+    # Simple season filter
+    selected_seasons = st.multiselect(
+        'Pilih Musim:',
+        options=['Winter', 'Spring', 'Summer', 'Fall'],
+        default=['Winter', 'Spring', 'Summer', 'Fall']
+    )
+
+    if selected_seasons:
+        filtered_day_df = day_df[day_df['season_name'].isin(selected_seasons)]
+        st.success(
+            f"Menampilkan data untuk musim: {', '.join(selected_seasons)}")
+    else:
+        filtered_day_df = day_df
+        st.warning("Tidak ada musim yang dipilih. Menampilkan semua data.")
+
     # Monthly comparison by year
-    monthly_comparison = day_df.groupby(['year_actual', 'month'])[
+    monthly_comparison = filtered_day_df.groupby(['year_actual', 'month'])[
         'total_rentals'].mean().reset_index()
 
     # Using Plotly for interactive chart with custom colors
@@ -198,6 +248,20 @@ elif pages == 'Analysis Q1':
                   color_discrete_map={2011: 'blue', 2012: 'orange'})  # Set explicit colors
 
     fig.update_layout(xaxis=dict(tickmode='linear', tick0=1, dtick=1))
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Additional seasonal analysis
+    st.subheader("Analisis berdasarkan Musim")
+    season_analysis = filtered_day_df.groupby(['year_actual', 'season_name'])[
+        'total_rentals'].mean().reset_index()
+
+    fig = px.bar(season_analysis, x='season_name', y='total_rentals', color='year_actual',
+                 barmode='group',
+                 labels={
+                     'season_name': 'Season', 'total_rentals': 'Average Daily Rentals', 'year_actual': 'Year'},
+                 title='Average Rentals by Season and Year',
+                 color_discrete_map={2011: 'blue', 2012: 'orange'})
+
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("""
@@ -216,6 +280,14 @@ elif pages == 'Analysis Q2':
     st.subheader(
         'Bagaimana dampak cuaca ekstrem (misalnya, hujan lebat/suhu sangat rendah) terhadap perilaku pengguna casual vs. registered?')
 
+    # Simple user type filter
+    user_type = st.radio(
+        'Pilih Tipe Pengguna:',
+        options=['Both', 'Casual', 'Registered']
+    )
+
+    st.success(f"Menampilkan data untuk pengguna: {user_type}")
+
     # Create the weather impact analysis
     weather_groups = day_df.groupby('weathersit').agg({
         'casual': 'mean',
@@ -233,22 +305,24 @@ elif pages == 'Analysis Q2':
     weather_groups['weather_desc'] = weather_groups['weathersit'].map(
         weather_desc)
 
-    # Create plotly chart
+    # Create plotly chart based on user type filter
     fig = go.Figure()
 
-    fig.add_trace(go.Bar(
-        x=weather_groups['weather_desc'],
-        y=weather_groups['casual'],
-        name='Casual Users',
-        marker_color='royalblue'
-    ))
+    if user_type in ['Both', 'Casual']:
+        fig.add_trace(go.Bar(
+            x=weather_groups['weather_desc'],
+            y=weather_groups['casual'],
+            name='Casual Users',
+            marker_color='royalblue'
+        ))
 
-    fig.add_trace(go.Bar(
-        x=weather_groups['weather_desc'],
-        y=weather_groups['registered'],
-        name='Registered Users',
-        marker_color='darkorange'
-    ))
+    if user_type in ['Both', 'Registered']:
+        fig.add_trace(go.Bar(
+            x=weather_groups['weather_desc'],
+            y=weather_groups['registered'],
+            name='Registered Users',
+            marker_color='darkorange'
+        ))
 
     fig.update_layout(
         title='Average Rentals by Weather Situation',
@@ -266,10 +340,21 @@ elif pages == 'Analysis Q2':
         weather_groups['registered_pct_drop'] = (
             1 - weather_groups['registered'] / weather_groups['registered'].iloc[0]) * 100
 
-        fig = px.bar(weather_groups, x='weather_desc', y=['casual_pct_drop', 'registered_pct_drop'],
+        y_cols = []
+        if user_type in ['Both', 'Casual']:
+            y_cols.append('casual_pct_drop')
+        if user_type in ['Both', 'Registered']:
+            y_cols.append('registered_pct_drop')
+
+        fig = px.bar(weather_groups, x='weather_desc', y=y_cols,
                      barmode='group',
                      labels={
-                         'value': 'Percentage Decrease (%)', 'variable': 'User Type', 'weather_desc': 'Weather Situation'},
+                         'value': 'Percentage Decrease (%)',
+                         'variable': 'User Type',
+                         'weather_desc': 'Weather Situation',
+                         'casual_pct_drop': 'Casual Users',
+                         'registered_pct_drop': 'Registered Users'
+                     },
                      title='Percentage Decrease in Rentals (Compared to Clear Weather)')
 
         fig.update_layout(yaxis_title='Percentage Decrease (%)')
