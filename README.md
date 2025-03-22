@@ -12,7 +12,11 @@ This interactive dashboard analyzes bike sharing data to answer key business que
 ```
 conda create --name bike-dashboard python=3.9
 conda activate bike-dashboard
+<<<<<<< HEAD
 pip install streamlit pandas matplotlib plotly
+=======
+pip install streamlit pandas matplotlib numpy tabulate plotly
+>>>>>>> 5341f7d399a91be6eca67b16f453e9a0cbe17459
 ```
 
 ## Setup Environment - Shell/Terminal
