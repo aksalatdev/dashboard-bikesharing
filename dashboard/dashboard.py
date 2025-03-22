@@ -30,7 +30,6 @@ pages = st.sidebar.radio('Pages:', [
 
 @st.cache_data  # Cache the data loading to improve performance
 def load_data():
-    # You'll need to update these paths to where your data files are stored
     day_df = pd.read_csv("day.csv")
     hour_df = pd.read_csv("hour.csv")
 
